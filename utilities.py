@@ -77,8 +77,8 @@ def request_content(target_url_list: list) -> dict:
     print("-->Videos Grabbed, Closing Session")
     return video_info_list
 
-def load_tiktok_links(collection_name: str) -> list:
-    with open(os.path.join('Text-Files', f'{collection_name}.txt'), "r") as file:
+def load_tiktok_links(filepath: str) -> list:
+    with open(filepath, "r") as file:
         url_list = file.readlines()
         file.close()
     
@@ -96,8 +96,3 @@ def structured_run():
     save(video_info_list=video_info_list_of_dicts)
     end = time.time()
     print(f'-->Runtime: {round( (end-start), 2 )} seconds\n')
-
-
-
-if __name__ == '__main__':
-    structured_run()
