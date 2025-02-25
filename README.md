@@ -4,3 +4,4 @@ Under Progress:
   - GUI
   - Selecting place on disk to download
   - Selecting the .txt file containing each link
+  - Picture collections -- They are more tricky to deal with, will work on this last probably.
