@@ -10,6 +10,9 @@ global_save_directory = os.getcwd() # idk what to default this to... Downloads/T
 global_start = 0
 global_end = 0
 
+'''
+This provides the functionality to redirect the console output to the GUI terminal
+'''
 class RedirectText:
     def __init__(self, text_widget):
         """Constructor that sets the text widget"""
@@ -288,7 +291,7 @@ class TikTokDownloader:
         
         session.close()
         self.queue.put("\n")
-        self.queue.put(">>Videos Grabbed, Closing HTTP Session<<")
+        self.queue.put(">>Videos Grabbed, Closing HTTP Session and Beginning Write to Disk<<")
         self.queue.put("-" * 50)
         return video_info_list
 
