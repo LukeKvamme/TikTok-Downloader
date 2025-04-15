@@ -199,31 +199,75 @@ class TikTokDownloader:
         video_info_list_of_dicts = self.request_content(target_url_list=url_list)
         self.save(video_info_list=video_info_list_of_dicts, save_directory=save_directory)
         self.queue.put("DONE")
-            
+
+    def save_video(self, video_url: str, save_directory: str, author_username: str, video_id: str):
+        save_path = os.path.join(save_directory, f"{author_username}_{video_id}.mp4")
+
+        response = requests.get(video_url, stream=True)
+        response.raise_for_status()
+
+        with open(save_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=(8192)): # 8 KB chunks
+                if chunk:
+                    f.write(chunk)
+            f.close()
+
+
+    def save_photos(self, save_directory: str, sound_url: str, image_url_list: list[str]):
+        # Save the slideshow audio to the subdirectory
+        try:
+            response = requests.get(sound_url, stream=True)
+
+            if response.status_code == 200:
+                with open(os.path.join(save_directory, f"sound.mp4"), 'wb') as file:
+                    for chunk in response.iter_content(chunk_size=(8192)): # 8 KB chunks
+                        if chunk:
+                            file.write(chunk)
+                    file.close()
+        except Exception as e:
+            print(f"An Error Occurred While Downloading Slideshow Audio: {e}")
+        
+        # Save the slideshow photos to the subdirectory
+        for index, image_url in enumerate(image_url_list):
+            try:
+                response = requests.get(image_url, stream=True)
+
+                if response.status_code == 200:
+                    with open(os.path.join(save_directory, f"{index}.jpg"), 'wb') as image_file:
+                        image_file.write(response.content)
+            except Exception as e:
+                print(f"An Error Occurred While Downloading Slideshow Images: {e}")
+ 
+
     def save(self, video_info_list: list, save_directory: str):
             # Loop through the list of dict objects
             # Each dict contains the information of one video, so download it in chunks of 8 MB to disk
-        num_videos = len(video_info_list)
-        vid_count = 0
+        num_tiktoks = len(video_info_list)
+        tiktok_count = 0
         total_byte_size = 0
-        for video_info in tqdm(video_info_list, desc="Downloading Videos to Disk "):
-            vid_count += 1
-            self.queue.put(f"\nSaving video {vid_count} out of {num_videos} to disk.")
+        for tiktok_info in tqdm(video_info_list, desc="Downloading Videos to Disk "):
+            tiktok_count += 1
+            self.queue.put(f"\nSaving TikTok {tiktok_count} out of {num_tiktoks} to disk.")
 
-            url = video_info['HD_video_url']
-            author_username = video_info['author_username']
-            video_byte_size = video_info['HD_size']
+            HD_video_or_sound_url = tiktok_info['HD_video_or_sound_url']
+            author_username = tiktok_info['author_username']
+            tiktok_id = tiktok_info['tiktok_id']
+            is_slideshow_tiktok = tiktok_info["image_url_list"]
+            video_byte_size = tiktok_info['HD_size']
             total_byte_size += video_byte_size
-            save_path = os.path.join(save_directory, f"{author_username}.mp4")
 
-            response = requests.get(url, stream=True)
-            response.raise_for_status()
+            if not is_slideshow_tiktok:
+                self.save_video(save_directory=save_directory, video_url=HD_video_or_sound_url ,author_username=author_username, video_id=tiktok_id)
+            else:
+                # Save directory needs to be altered if it is a slide show, will create a subdir of the slideshow containing .jpg and .mp4 audio
+                photo_slideshow_save_path = os.path.join(save_directory, f"{author_username}_{tiktok_id}")
+                if not os.path.isdir(photo_slideshow_save_path):
+                    os.mkdir(photo_slideshow_save_path)
+                
+                self.save_photos(save_directory=photo_slideshow_save_path, sound_url=HD_video_or_sound_url, image_url_list=is_slideshow_tiktok)
 
-            with open(save_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=(8192)): # 8 KB chunks
-                    if chunk:
-                        f.write(chunk)
-                f.close()
+            
+
         size = total_byte_size
         if size < 1024: # size less than 1 KB?
             size_str = f"{size} bytes"
@@ -236,7 +280,9 @@ class TikTokDownloader:
         self.queue.put("\n")
         self.queue.put(f"-->Download to Disk complete. Total Bytes written to Disk: {size_str}")
         self.queue.put("=" * 50)
-                    
+
+
+
     def request_content(self, target_url_list: list) -> dict:
         tiktok_download_website = "https://www.tikwm.com/api/"
         session = requests.Session()
@@ -277,14 +323,23 @@ class TikTokDownloader:
                 return
         
             # else, video json data successfully grabbed:
-            HD_video_url = json_dict['data']['hdplay']
+            HD_video_or_sound_url = json_dict['data']['hdplay'] # video url is relative path url, for that session. took a while to realize when trying to replicate using postman but it would not work
             HD_size_mb = json_dict['data']['hd_size']
             author_username = json_dict['data']['author']['nickname']
+            tiktok_id = json_dict['data']['id']
+
+            if "images" in json_dict['data']:
+                image_url_list = json_dict['data']['images']
+            else:
+                image_url_list = False
+
 
             video_to_download = {
-                "HD_video_url": HD_video_url,
+                "HD_video_or_sound_url": HD_video_or_sound_url,
                 "HD_size": HD_size_mb,
-                "author_username":  author_username
+                "author_username":  author_username,
+                "tiktok_id": tiktok_id,
+                "image_url_list": image_url_list
             }
 
             video_info_list.append(video_to_download)
@@ -306,6 +361,8 @@ class TikTokDownloader:
             url_list[index] = fixed_url
         
         return url_list
+
+
 
 if __name__ == "__main__":
     sys.stdout = sys.__stdout__
