@@ -34,7 +34,7 @@ class RedirectText:
     def flush(self):
         """Required for file-like objects"""
         pass
-
+ 
 class TikTokDownloader:
     def __init__(self, root):
         self.root = root
