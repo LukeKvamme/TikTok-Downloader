@@ -233,7 +233,7 @@ class TikTokDownloader:
         """
         # Disable the 'Run" button while it is running to not create multiple running threads
         self.run_button.config(state=tk.DISABLED)
-        self.run_button.config(text="Running...", background="black")
+        self.run_button.config(text="Running...", underline=3)
 
         # Create the thread and Start it
         thread = threading.Thread(target=self.background_run)
@@ -310,6 +310,11 @@ class TikTokDownloader:
         self.queue.put("\n")
         self.queue.put(f"-->Download to Disk complete. Total Bytes written to Disk: {size_str}")
         self.queue.put("=" * 50)
+
+         # Disable the 'Run" button while it is running to not create multiple running threads
+        self.run_button.config(state=tk.NORMAL)
+        self.run_button.config(text="Run")
+
 
 
     def save_video(self, session, video_url: str, save_directory: str, author_username: str, unique_tiktok_id: str):
